@@ -1,0 +1,1 @@
+C:\Users\SIstanalaptop\OneDrive\Documents\GitHub\webview_flutter_plus\example\build\app\intermediates\cxx\RelWithDebInfo\3if6n8d2\obj\arm64-v8a

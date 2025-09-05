@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fa">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>نمایشگر STL با ViewCube</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #f5f6fa;
+            font-family: sans-serif;
+        }
+        
+        canvas {
+            display: block;
+        }
+        
+        #viewcube {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            border: 1px solid #bbb;
+            border-radius: 8px;
+            background: white;
+            z-index: 100;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, .15);
+        }
+        
+        #controls-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        button,
+        label,
+        input[type="number"] {
+            font-size: 14px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #666;
+            background: #fff;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        
+        button:hover,
+        label:hover,
+        input[type="number"]:hover {
+            background: #eee;
+        }
+        
+        .rotation-controls,
+        .scale-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        
+        input[type="number"] {
+            width: 60px;
+            cursor: text;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="viewcube"></div>
+    <div id="controls-container">
+        <label for="file-input">📂 انتخاب STL</label>
+        <input type="file" id="file-input" accept=".stl" multiple="true" style="display:none">
+        <button id="reset-camera">🔄 ریست دوربین</button>
+        <button id="reset-rotation">🔄 ریست چرخش</button>
+        <button id="remove-model">❌ حذف مدل‌ها</button>
+        <div class="rotation-controls">
+            <button id="rotate-x-pos"> X+</button>
+            <button id="rotate-x-neg"> X-</button>
+            <button id="rotate-y-pos"> Y+</button>
+            <button id="rotate-y-neg"> Y-</button>
+            <button id="rotate-z-pos"> Z+</button>
+            <button id="rotate-z-neg"> Z-</button>
+        </div>
+        <div class="scale-controls">
+            <input type="number" id="scale-input" value="1.0" step="0.1" min="0.1" max="10" placeholder="مقیاس">
+            <button id="apply-scale">✅ اعمال مقیاس</button>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>

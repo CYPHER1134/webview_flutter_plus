@@ -1,81 +1,140 @@
-import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:webview_flutter_plus/webview_flutter_plus.dart';
 
-LocalhostServer localhostServer = LocalhostServer();
-
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final localhostServer = LocalhostServer();
   await localhostServer.start(port: 0);
-  runApp(const WebViewPlusExample());
+
+  runApp(MyApp(localhostServer: localhostServer));
 }
 
-class WebViewPlusExample extends StatelessWidget {
-  const WebViewPlusExample({super.key});
+class MyApp extends StatelessWidget {
+  final LocalhostServer localhostServer;
+  const MyApp({super.key, required this.localhostServer});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: MainPage(),
+    return MaterialApp(
+      title: 'STL Viewer',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      debugShowCheckedModeBanner: false,
+      home: STLViewerPage(localhostServer: localhostServer),
     );
   }
 }
 
-class MainPage extends StatefulWidget {
-  const MainPage({super.key});
+class STLViewerPage extends StatefulWidget {
+  final LocalhostServer localhostServer;
+  const STLViewerPage({super.key, required this.localhostServer});
 
   @override
-  State<MainPage> createState() => _MainPageState();
+  State<STLViewerPage> createState() => _STLViewerPageState();
 }
 
-class _MainPageState extends State<MainPage> {
-  late WebViewControllerPlus _controler;
+class _STLViewerPageState extends State<STLViewerPage> {
+  late WebViewControllerPlus _controller;
 
   @override
   void initState() {
-    _controler = WebViewControllerPlus()
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageFinished: (url) async {
-            double height = await _controler.webViewHeight;
-
-            if (height != _height) {
-              if (kDebugMode) {
-                print("Height is: $height");
-              }
-              setState(() {
-                _height = height;
-              });
-            }
-          },
-        ),
-      )
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000))
-      ..loadFlutterAssetWithServer('assets/index.html', localhostServer.port!);
     super.initState();
+
+    _controller = WebViewControllerPlus()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..addJavaScriptChannel(
+        'FlutterLog',
+        onMessageReceived: (msg) {
+          // هر لاگی از JS با FlutterLog.postMessage میاد اینجا
+          // برای دیباگ مفیده
+          debugPrint('JS: ${msg.message}');
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(msg.message)));
+        },
+      )
+      ..loadFlutterAssetWithServer(
+        'assets/three_cube.html',
+        widget.localhostServer.port!,
+      );
   }
 
-  double _height = 0.001;
+  Future<void> _pickSTLFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        withData: true, // سعی کن بایت‌ها را مستقیم بگیریم
+        type: FileType.custom,
+        allowedExtensions: ['stl'],
+      );
+
+      if (result == null) return;
+
+      Uint8List? fileBytes = result.files.first.bytes;
+      final path = result.files.first.path;
+
+      // اگر فایل بزرگ بود ممکنه bytes تهی باشه؛ از مسیر بخونیم
+      if (fileBytes == null && path != null) {
+        fileBytes = await File(path).readAsBytes();
+      }
+
+      if (fileBytes == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('خواندن فایل ناموفق بود.')),
+        );
+        return;
+      }
+
+      final base64Data = base64Encode(fileBytes);
+      // ارسال امن به JS
+      final jsArg = jsonEncode(base64Data);
+      await _controller.runJavaScript('loadSTLFromBase64($jsArg)');
+    } catch (e) {
+      debugPrint('Pick error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطا در انتخاب/ارسال فایل: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.localhostServer.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('webview_flutter_plus Example'),
-      ),
-      body: ListView(
-        children: [
-          Text("Height of WebviewPlus: $_height",
-              style: const TextStyle(fontWeight: FontWeight.bold)),
-          SizedBox(
-            height: _height,
-            child: WebViewWidget(
-              controller: _controler,
-            ),
+        title: const Text('STL Viewer with ViewCube'),
+        actions: [
+          IconButton(
+            tooltip: 'انتخاب فایل STL',
+            icon: const Icon(Icons.upload_file),
+            onPressed: _pickSTLFile,
           ),
-          const Text("End of WebviewPlus",
-              style: TextStyle(fontWeight: FontWeight.bold)),
         ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: WebViewWidget(controller: _controller),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text('برای بارگذاری STL روی آیکون بالا بزنید.'),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _pickSTLFile,
+        label: const Text('انتخاب فایل STL'),
+        icon: const Icon(Icons.file_open),
       ),
     );
   }
